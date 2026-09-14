@@ -3,7 +3,6 @@
 import json
 import os
 from pathlib import Path
-import re
 import shutil
 import subprocess
 import sys
@@ -19,6 +18,16 @@ CITATION = ROOT / "CITATION.cff"
 
 
 class JSpaceControllerTests(unittest.TestCase):
+    def test_advisory_ship_rejects_oversized_file_and_stdin_without_truncation(self):
+        path = Path(self.workspace.name) / 'large.txt'
+        limit = 8 * 1024 * 1024
+        path.write_bytes(b'a' * (limit + 1))
+        for result in (self.run_controller('ship', str(path)),
+                       self.run_controller_bytes('ship', '-', stdin=b'a' * (limit + 1))):
+            self.assertEqual(result.returncode, 2)
+            output = result.stdout.decode('utf-8') if isinstance(result.stdout, bytes) else result.stdout
+            self.assertIn('8 MiB advisory limit', output)
+
     def setUp(self):
         self.workspace = tempfile.TemporaryDirectory()
 
@@ -363,6 +372,187 @@ class JSpaceControllerTests(unittest.TestCase):
         )
         self.assertEqual(manual.returncode, 0, manual.stdout + manual.stderr)
 
+    def test_declines_echo_the_received_evidence_and_mark_examples(self):
+        self.open_ledger()
+        coverage_gap = self.run_controller(
+            "note",
+            "--check",
+            "parser preserves state",
+            "--by",
+            "regression tests on the parser",
+        )
+        self.assertEqual(
+            coverage_gap.returncode, 2, coverage_gap.stdout + coverage_gap.stderr
+        )
+        self.assertIn('received --by "regression tests on the parser"', coverage_gap.stdout)
+        self.assertIn("example: --by", coverage_gap.stdout)
+
+        verifier_gap = self.run_controller(
+            "note",
+            "--check",
+            "helper is pure",
+            "--by",
+            "all inputs and both boundaries",
+        )
+        self.assertEqual(
+            verifier_gap.returncode, 2, verifier_gap.stdout + verifier_gap.stderr
+        )
+        self.assertIn('received --by "all inputs and both boundaries"', verifier_gap.stdout)
+        self.assertIn("example: --by", verifier_gap.stdout)
+
+    def test_checkpoint_evidence_is_not_contaminated_across_invocations(self):
+        """Distinct verifiers stay isolated across history, seams, and the close path."""
+        self.open_ledger()
+        a = self.run_controller(
+            "note",
+            "--check",
+            "checkpoint A",
+            "--by",
+            "unit tests over all files and edge inputs",
+        )
+        self.assertEqual(a.returncode, 0, a.stdout + a.stderr)
+
+        self.history.parent.mkdir(exist_ok=True)
+        self.history.write_text(
+            json.dumps(
+                [
+                    {
+                        "t": int(time.time()) - 3600,
+                        "next": "brute force, n ≤ 6, including empty and maximum",
+                        "verified": 99,
+                        "open": 99,
+                    }
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        b = self.run_controller(
+            "note",
+            "--check",
+            "checkpoint B",
+            "--by",
+            "manual review of each changed section",
+        )
+        self.assertEqual(b.returncode, 0, b.stdout + b.stderr)
+
+        seam = self.run_controller("seam")
+        self.assertEqual(seam.returncode, 0, seam.stdout + seam.stderr)
+        opened = self.run_controller(
+            "note",
+            "--open",
+            "Is the ledger stable?",
+            "--settled-by",
+            "test over all inputs",
+        )
+        self.assertEqual(opened.returncode, 0, opened.stdout + opened.stderr)
+        closed = self.run_controller(
+            "note",
+            "--close",
+            "1",
+            "--check",
+            "ledger stable",
+            "--by",
+            "diff against the previous seam, every section",
+        )
+        self.assertEqual(closed.returncode, 0, closed.stdout + closed.stderr)
+
+        ledger = self.ledger.read_text(encoding="utf-8")
+        rows = {
+            tag: next(line for line in ledger.splitlines() if tag in line)
+            for tag in ("checkpoint A", "checkpoint B", "ledger stable")
+        }
+        self.assertIn("manual review of each changed section", rows["checkpoint B"])
+        self.assertNotIn("unit tests over all files", rows["checkpoint B"])
+        self.assertNotIn("brute force", rows["checkpoint B"])
+        self.assertNotIn("brute force", rows["ledger stable"])
+        self.assertNotIn("manual review", rows["ledger stable"])
+
+    def test_hand_restated_unpadded_open_number_still_closes(self):
+        self.ledger.parent.mkdir()
+        self.ledger.write_text(
+            "# J-Space Workspace Ledger\n\n## Goal\nShip verified output\n\n## Core\n\n"
+            "## Verified\n\n## Open\n"
+            "- ?9 Loose numbering from a hand restatement — settled by: test over all inputs\n"
+            "\n## Next\nInspect inputs\n",
+            encoding="utf-8",
+        )
+        closed = self.run_controller(
+            "note",
+            "--close",
+            "9",
+            "--check",
+            "hand-restated ledger integrates",
+            "--by",
+            "diff against the previous seam, every section",
+        )
+        self.assertEqual(closed.returncode, 0, closed.stdout + closed.stderr)
+        ledger = self.ledger.read_text(encoding="utf-8")
+        self.assertNotIn("?9 Loose", ledger)
+        self.assertIn("closes: ?09", ledger)
+
+        reopened = self.run_controller(
+            "note", "--open", "Next question", "--settled-by", "test over all inputs"
+        )
+        self.assertEqual(reopened.returncode, 0, reopened.stdout + reopened.stderr)
+        self.assertIn("?10 Next question", self.ledger.read_text(encoding="utf-8"))
+
+    def test_extra_goal_lines_in_a_hand_restated_ledger_warn(self):
+        self.ledger.parent.mkdir()
+        self.ledger.write_text(
+            "# J-Space Workspace Ledger\n\n## Goal\nFirst goal line\nSecond goal line\n\n"
+            "## Core\n\n## Verified\n\n## Open\n\n## Next\nInspect inputs\n",
+            encoding="utf-8",
+        )
+        edited = self.run_controller("note", "--next", "Advance")
+        self.assertEqual(edited.returncode, 0, edited.stdout + edited.stderr)
+        self.assertIn("only the first was kept", edited.stderr)
+        ledger = self.ledger.read_text(encoding="utf-8")
+        self.assertIn("First goal line", ledger)
+        self.assertNotIn("Second goal line", ledger)
+
+    def test_utf8_bom_ledger_is_still_readable(self):
+        self.ledger.parent.mkdir()
+        self.ledger.write_text(
+            "## Goal\nShip verified output\n\n## Core\n\n## Verified\n\n"
+            "## Open\n\n## Next\nInspect inputs\n",
+            encoding="utf-8-sig",
+        )
+        resumed = self.run_controller("resume")
+        self.assertEqual(resumed.returncode, 0, resumed.stdout + resumed.stderr)
+        self.assertIn("Goal: Ship verified output", resumed.stdout)
+
+    def test_corrupt_history_warns_once_per_seam(self):
+        self.open_ledger()
+        self.history.write_text("[not json", encoding="utf-8")
+        seam = self.run_controller("seam")
+        self.assertEqual(seam.returncode, 0, seam.stdout + seam.stderr)
+        self.assertEqual(seam.stderr.count("history was unreadable"), 1)
+
+    def test_broken_output_pipe_exits_cleanly(self):
+        self.open_ledger()
+        rows = "\n".join(
+            "- ✓%04d filler checkpoint — verified by: unit tests over all files and edge inputs" % n
+            for n in range(4000)
+        )
+        self.ledger.write_text(
+            "# J-Space Workspace Ledger\n\n## Goal\nShip verified output\n\n## Core\n\n"
+            "## Verified\n%s\n\n## Open\n\n## Next\nInspect inputs\n" % rows,
+            encoding="utf-8",
+        )
+        proc = subprocess.Popen(
+            [sys.executable, str(CONTROLLER), "resume"],
+            cwd=self.workspace.name,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        proc.stdout.close()
+        stderr = proc.stderr.read()
+        proc.stderr.close()
+        proc.wait()
+        self.assertNotIn(b"Traceback", stderr)
+        self.assertEqual(proc.returncode, 0)
+
     def test_ship_skips_markdown_headings_but_checks_claim_lines(self):
         headings = self.run_controller(
             "ship",
@@ -522,6 +712,30 @@ class JSpaceControllerTests(unittest.TestCase):
         self.assertEqual(followed.returncode, 0, followed.stdout + followed.stderr)
         self.assertIn("line 4:", followed.stdout)
 
+    def test_ship_ignores_character_runs_inside_inline_code(self):
+        clean = self.run_controller(
+            "ship",
+            "-",
+            stdin="The token `........................` is documented here.\n",
+        )
+        self.assertEqual(clean.returncode, 0, clean.stdout + clean.stderr)
+        self.assertIn("clean", clean.stdout)
+
+        reported = self.run_controller(
+            "ship", "-", stdin="A run like ........................ leaks.\n"
+        )
+        self.assertEqual(reported.returncode, 0, reported.stdout + reported.stderr)
+        self.assertIn("character run of 20 or more", reported.stdout)
+
+    def test_hyphenated_benchmark_label_is_not_an_uncovered_claim(self):
+        checked = self.run_controller(
+            "ship",
+            "-",
+            stdin="| Benchmark | Score |\n|---|---|\n| SWE-bench-Verified | 78.0 |\n",
+        )
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("clean", checked.stdout)
+
     def test_stdin_and_file_use_the_same_decoder(self):
         payload = "Résultat A ⇒ B ∴ terminé.\n".encode("utf-8")
         outgoing = Path(self.workspace.name) / "outgoing.txt"
@@ -639,7 +853,7 @@ class JSpaceControllerTests(unittest.TestCase):
     def test_citation_metadata_does_not_claim_an_unpublished_release(self):
         citation = CITATION.read_text(encoding="utf-8")
         self.assertNotIn("link to be added", citation)
-        self.assertRegex(citation, r'(?m)^version:\s*["\']?3\.7["\']?\s*$')
+        self.assertRegex(citation, r'(?m)^version:\s*["\']?SV1["\']?\s*$')
         self.assertIn("10.5281/zenodo.21971181", citation)
         self.assertNotRegex(citation, r"(?m)^doi:")
         self.assertNotRegex(citation, r"(?m)^date-released:")

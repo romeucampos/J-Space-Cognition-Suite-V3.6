@@ -1,209 +1,281 @@
-# J-Space Cognition Suite V3.7
+# J-Space Cognition Suite SV1
 
 [English](README.md)
 
 [![Concept DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21971181.svg)](https://doi.org/10.5281/zenodo.21971181)
 
-J-Space Cognition Suite 是一套面向深度推理、长程工作、工具调用、验证与恢复的模型不可知推理时控制系统。
+J-Space 是面向复杂推理、大型仓库工程、子代理协作与授权安全分析的推理时工作空间和控制套件。
+它以一个 Skill 封装，通过按需加载模块、持久状态和证据检查，让长任务中的理解、修改、验证与恢复保持连接。
 
-它以 Skill 形式封装，从而支持跨平台使用、选择性加载与低摩擦集成。
-
-套件将智能体可访问的工作表征组织为一个可主动管理的工作空间。整体由一个入口、九个按需加载的模块、四份支撑资料，以及一个用于保存长任务状态的可选标准库控制器组成。
-
-J-Space 在推理阶段运行，模型权重和训练过程保持原有状态。
+十三个模块共享一个核心前提和一个路由入口。Python 标准库脚本负责保存状态、实际重读原文、检测过期地图与证据，并在必要条件不满足时返回阻断结果。宿主提供工具与代理运行能力。
 
 ## 快速开始
 
-### 方式 A：手动安装
+需要能加载本地 `SKILL.md` 并读取配套文件的宿主。执行控制器和安装校验需要 Python 3.10+；
+low/medium 可采用文档中的纯文本回退方式。不需要 pip 依赖或后台服务。
 
-1. 下载或克隆本仓库。
-2. 找到当前 AI 宿主使用的用户级 Skills 目录。
-3. 将完整的 [`j-space/`](j-space/) 目录复制进去，确保最终入口位于 `<Skills 目录>/j-space/SKILL.md`。
-4. 使用可用的 Python 3 解释器运行完整性检查：
+1. 将完整的 [`j-space/`](j-space/) 复制到宿主配置指定的 Skills 目录；各宿主没有统一安装位置或调用语法。
+   保持 `SKILL.md`、`modules/`、`references/`、`scripts/` 的相对结构，避免多套一层 `j-space/j-space/`。
+   单独分发技能时，将 `LICENSE` 和 `THIRD_PARTY_NOTICES.md` 一起复制到已安装的 `SKILL.md` 旁。
+   使用空的目标目录，避免不同安装内容混合。
+2. 使用 Python 3.10 或更高版本检查安装内容：
 
    ```text
-   <python-command> <Skills 目录>/j-space/scripts/verify_suite.py
+   <python-command> <skill-root>/scripts/verify_suite.py
    ```
 
-   请将 `<python-command>` 替换为宿主可用的 Python 3 命令，常见形式包括 `python`、`python3` 或 `py -3`。
-   
-5. 如果宿主只在启动时发现 Skills，请重新加载宿主。
+3. 如果宿主只在启动时发现技能，请重新加载，并通过技能选择器选中 `j-space`。
+   只有宿主文档支持时才用 `$j-space` 或 `/j-space`；否则明确要求读取已安装的 `SKILL.md`。
+   确认宿主能读取一个路由模块；需要严格门禁时，还应能执行安装目录中控制器的 `--help`。
+4. 给出任务和验收条件：
 
-- `j-space/` 目录应保持完整，因为 `SKILL.md` 会通过相对路径访问 `modules/`、`references/` 和 `scripts/`。
+   ```text
+   请使用 j-space 修改这个仓库。先检查现有契约，维护有源码依据的地图，在有独立工作时使用子代理，并验证最终行为。
+   ```
 
-- 仓库根目录的 `LICENSE` 与 `THIRD_PARTY_NOTICES.md` 仍属于分发内容。
+`<python-command>` 可替换为可用的 `python`、`python3` 或 `py -3`。`<skill-root>` 是实际安装目录。
+以任务目录作为当前目录，或在控制器子命令前添加 `--root TASK_DIRECTORY`。
 
-- 若单独再分发 `j-space/`，应同时附带这两个文件的副本。
+Bash 中对带空格的路径加引号：
 
-### 方式 B：让 AI 安装
-
-把下面的提示词复制给能够访问文件和本仓库的 AI 智能体：
-
-```text
-请从以下仓库安装 J-Space Cognition Suite：https://github.com/Tiger3807861189/J-Space-Cognition-Suite-V3.7
-
-请先检查当前宿主的配置或文档，确认用户级 Skills 目录。将仓库中的完整 j-space/ 目录安装为 j-space/，并保持 SKILL.md、modules/、references/ 和 scripts/ 的相对结构。如果目标位置已经存在 j-space，请先比较并询问我，再执行替换。
-
-安装后，请使用可用的 Python 3 解释器运行 scripts/verify_suite.py。完成后告诉我安装路径和校验结果，并说明当前宿主应如何调用这个 Skill。请简要解释 fast、full、loop 三种 pass，以及可选控制器负责记录长任务状态而不负责选择解法。如果当前宿主没有原生 Skill 加载能力，请说明如何通过 system/developer 指令和选择性文件检索完成接入，不要把这种接入报告成原生安装。
+```bash
+python3 "/path with spaces/j-space/scripts/control.py" --root "/task directory" status
 ```
 
-### 开始使用
+PowerShell 中引用解释器路径时使用调用运算符：
 
-通过宿主提供的 Skill 选择器、`/j-space`、`$j-space`，或者直接要求 AI 使用：
-
-```text
-请在这个任务中使用 j-space。审查这个仓库，保持现有架构，逐项验证发现，并在所有受影响文件之间维持一致状态。
+```powershell
+& "C:\Python313\python.exe" "C:\Skills\j-space\scripts\control.py" --root "D:\Task Directory" status
 ```
 
-入口门控会自动选择适合当前任务的最轻 pass。
+请先初始化任务再运行 `status`。UTF-8 输入支持中文、英文任务内容；交付物遵循用户要求的语言。
+在目标项目的任务目录运行控制器，不要在技能安装目录运行。复制文件不会自动注册钩子、启动代理或授予工具权限。
 
-## 运行模式
+> **敬告：适用范围。** 本套件面向具有契约、依赖、验证和恢复需求的真实工程及生产项目，
+> 不以“鹈鹕骑自行车”之类的玩具演示为目标。面向严肃工程是设计定位，不意味着未经验证的部署已具备生产就绪保证。
 
-| Pass | 适用工作 | 加载内容 |
+## 运行级别
+
+| 级别 | 适用任务 | 控制方式 |
 |---|---|---|
-| `fast` | 单步任务，或一眼可以核验的结果 | 不加载额外机制 |
-| `full` | 若干相互依赖的步骤和一个边界明确的交付物 | 一到两个相关模块；交付前运行 `ship` |
-| `loop` | 多阶段、多文件、多轮、工具调用或持久状态 | 账本、接缝、checkpoint、寄存器审计和恢复 |
+| `low` | 一眼可以核验的直接结果 | fast；无需建立持久状态 |
+| `medium` | 少量相互依赖的步骤、边界明确的交付物 | full；按需模块与交付审查 |
+| `high` | 多文件、多阶段、跨会话任务 | loop；共享状态、原文刷新、证据检查 |
+| `xhigh` | 需要团队处理的复杂集成与竞争方案 | loop 加有界子代理协作、二次思考与独立复核 |
 
-简短输出要求会改变外部回答长度，验证强度仍与任务底线保持一致。简单任务保持轻量，长程任务只在需要时获得持久状态。
+`media` 可作为 `medium` 的输入别名。任务的不确定性或依赖增加时提高级别；独立工作能够抵消协调成本时主动使用子代理。
+宿主没有代理能力时，记录限制并执行顺序检查。
 
-## 核心机制
+## 四个挡位的简单教程
 
-| 机制 | 作用 |
-|---|---|
-| 选择性工作空间加载 | 只保持一到两个承重概念活跃，其余内容外化保存 |
-| 广播枢纽 | 让所有依赖分支共享名称、数值、约束和风格锚点 |
-| 稠密轨 | 以紧凑且可解码的内部记法承载长链条，随后回到清晰外部语言 |
-| 结论前桥接推理 | 让结论依赖的中间概念先进入活动状态 |
-| 元认知控制 | 把置信度、不一致和失败信号路由为明确的下一动作 |
-| 经验逃逸与验证 | 将停滞推导转化为有边界的测试，并记录验证方式与覆盖范围 |
-| 第一人称能动性与功能性回响 | 用 `I`、`we`、`let's` 和 `we need` 将工作空间状态绑定到后续动作与检查 |
+先选择技能。下列命令中的 `<python-command>` 和 `<skill-root>` 应替换为实际解释器与技能安装目录，
+路径含空格时加引号，并以目标任务目录作为当前目录。示例工件应来自实际工作和检查，不要为通过门禁制造空文件或虚假证据。
 
-这些机制按需加载，并不是每个请求都要执行的固定清单。
+### low：工程任务中的单点检查
 
-## 可选控制器
+可以说：“使用 j-space 的 low 挡，检查这项配置变更是否保持超时单位一致。给出结论与依据，不扩大任务。”
+读取相关输入、核验一个约束并返回结果，无需初始化状态。若发现跨文件依赖或未解决的不确定性，再升档。
 
-[`j-space/scripts/jspace.py`](j-space/scripts/jspace.py) 将 `loop` 状态外化到当前任务工作区的 `.jspace/` 中。调用时使用脚本在 Skill 中的实际路径，并保持任务工作区为当前目录。
+### medium：有少量依赖步骤的小型交付
 
-| 命令 | 用途 |
-|---|---|
-| `note --goal "..." --next "..."` | 打开账本，定义完成条件和第一个动作 |
-| `note --next "..."` | 在 checkpoint 或 seam 后替换唯一的下一动作 |
-| `note --core "名称 — 定义性事实"` | 记录一个枢纽项 |
-| `note --core "名称 — 定义性事实" --core-slot 1` | 交换指定的活动枢纽项 |
-| `note --check "..." --by "..."` | 追加包含验证方式与覆盖范围的 checkpoint |
-| `note --open "..." --settled-by "..."` | 记录开放问题和收束条件 |
-| `note --close N --check "..." --by "..."` | 以新记录的 checkpoint 关闭编号为 `N` 的问题 |
-| `seam` | 重读当前状态并报告近期变化 |
-| `ship FILE` | 检查输出文本中的寄存器泄漏和失效特征 |
-| `resume` | 在长间隔后重新加载 premise、invariants 和完整账本 |
+可以说：“使用 j-space 的 medium 挡，更新这个 API 示例，并对照实现验证参数。简短记录目标、不确定性和实际检查结果。”
+可选择轻量账本：
 
 ```text
-<python-command> <skill-root>/scripts/jspace.py note --goal "完成条件" --next "第一个动作"
-<python-command> <skill-root>/scripts/jspace.py note --open "解析器是否保持状态？" --settled-by "覆盖全部账本区段与边界输入的单元测试"
-<python-command> <skill-root>/scripts/jspace.py note --close 1 --check "解析器保持状态" --by "单元测试覆盖全部账本区段与边界输入"
+<python-command> <skill-root>/scripts/jspace.py note --goal "API example matches implementation" --next "Inspect the endpoint"
+<python-command> <skill-root>/scripts/jspace.py note --open "Does the example cover required inputs?" --settled-by "Inspect the endpoint and run the example"
 <python-command> <skill-root>/scripts/jspace.py seam
-<python-command> <skill-root>/scripts/jspace.py ship OUTPUT_FILE
-<python-command> <skill-root>/scripts/jspace.py resume
 ```
 
-控制器负责记录和报告状态，解法仍由模型选择。它只使用 Python 标准库，并且只在任务的 `.jspace/` 目录中写入工作状态。
+检查并运行示例后，用 `note --check "Observed result" --by "manual inspection of each input and execution of the reported case" --close 1`
+记录真实结论，参数文字可改为中文。写好 `answer.md` 后运行 `jspace.py ship answer.md`。
+它只做启发式文本审查，发现为提示；不可读或超大输入会被拒绝。它不能证明 API 行为正确。
+同一个任务不要同时维护轻量账本和严格控制器两套状态。
 
-## 通用模型接入
+### high：从仓库检查到最终交付
 
-具有原生 Skill 加载能力的环境可以直接安装 `j-space/`。对于聊天或 API 环境，可将 [`j-space/SKILL.md`](j-space/SKILL.md) 作为 system 或 developer 指令，并通过文件工具或检索工具开放 `modules/` 与 `references/`。
-
-相关文件按需检索；选择性加载本身就是运行设计的一部分。
-
-## Benchmark
-
-### 1. 主表
-
-| Benchmark                | DeepSeek V4-Flash-Vision-Exp | DeepSeek V4-Flash-Vision-Exp **+ J-Space V3.7** | GLM-5.3 | Opus-4.8 | Fable 5 (w/ fallback) |
-| ------------------------ | ---------------------------: | ----------------------------------------------: | ------: | -------: | --------------------: |
-| HLE (w/o tools)          |                        *37.8 |                                        **37.8** |       — |     49.8 |                  53.3 |
-| HLE (w/ tools)           |                        *51.5 |                                        **51.9** |    62.5 |     57.9 |                  63.0 |
-| Terminal Bench 2.1       |                         83.9 |                                        **85.4** |    88.2 |     85.0 |                  88.0 |
-| NL2Repo                  |                         57.7 |                                        **60.6** |    58.0 |     69.7 |                     — |
-| DeepSWE                  |                         59.3 |                                        **61.7** |    66.9 |     58.0 |                  70.0 |
-| Agents' Last Exam        |                         27.3 |                                        **28.3** |    28.5 |     25.7 |                  23.8 |
-| AutomationBench (Public) |                         25.7 |                                        **27.5** |    48.2 |     27.2 |                  29.1 |
-
-\* HLE 数据未披露，沿用 DeepSeek V4-Flash-0731。
-
-### 2. 速度与 token 效率
-
-| Benchmark                | 墙钟 τ | 提速 | 输出 token | 总 token | **单位时间得分** | 每成功任务成本 |
-| ------------------------ | -----: | ---: | ---------: | -------: | ---------------: | -------------: |
-| HLE (w/o tools)          |  *1.02 |  −2% |       −10% |      +5% |        **0.98×** |            +5% |
-| HLE (w/ tools)           |   0.88 | +14% |       −22% |      +3% |        **1.15×** |            +2% |
-| Terminal Bench 2.1       |   0.79 | +27% |       −28% |      −3% |        **1.29×** |            −5% |
-| AutomationBench (Public) |   0.76 | +32% |       −31% |      −5% |        **1.41×** |           −12% |
-
-\* HLE (w/o tools) 的 τ=1.02 是**有意为正**（即变慢）：单轮任务上技能条目是净开销。
-
-**详见：[DeepSeek V4 × J-Space 能力释放报告](https://github.com/Tiger3807861189/DeepSeek-V4-J-Space-Capability-Realization-Report)。**
-
-## 跨模型兼容性
-
-该套件的运行效应已在 DeepSeek、Qwen、GLM、GPT 与 Claude 模型系列上复现。具体幅度会随基础能力、上下文策略、工具 Harness、采样配置和 Benchmark 实现而变化。
-
-可迁移单元是工作空间加载、选择性路由、状态外化、验证和恢复组成的协议，并不依赖特定厂商的 tokenizer 或模型 API。
-
-## 项目结构
+可以说：“使用 j-space 的 high 挡修复这个仓库问题。保持公开契约，维护有源码依据的地图，执行相关测试，逐项提供验收证据。”
+先按下文“共享控制”初始化、读取源文、创建并同步和查看地图，再通过工作门禁。
+完成修改，将真实验证写入 `evidence/root.txt`，逐项验收清单另写入 `evidence/completion.txt`。
+只有 `src/router.py` 确实是重要源码依赖时才保留下列路径；请替换为实际文件，必要时重复 `--source`。
 
 ```text
-J-Space-Cognition-Suite-V3.7/
-├── .github/workflows/verify.yml    # 三平台完整性检查和回归测试
-├── CITATION.cff                    # 机器可读的引用元数据
-├── CONTRIBUTING.md                 # 贡献与来源说明要求
-├── LICENSE                         # Apache License 2.0
-├── README.md                       # 英文工程指南
-├── README.zh-CN.md                 # 中文工程指南
-├── THIRD_PARTY_NOTICES.md          # 外部材料的归属与许可边界
-├── tests/test_jspace.py            # 标准库控制器回归测试
-└── j-space/
-    ├── SKILL.md                    # 唯一入口、门控、路由与 invariants
-    ├── modules/                    # 九个按需加载的协议模块
-    ├── references/                 # 证据、诱导方法、问题建模与工作示例
-    └── scripts/
-        ├── jspace.py               # 可选 loop 控制器
-        ├── workspace-ledger.md     # 账本模板和契约
-        └── verify_suite.py         # 编写期完整性检查
+<python-command> <skill-root>/scripts/control.py pulse --event checkpoint
+<python-command> <skill-root>/scripts/control.py report --agent root --round 1 --summary "Observed repair and coverage" --evidence evidence/root.txt --completion evidence/completion.txt --source src/router.py --next "Deliver checked result"
+<python-command> <skill-root>/scripts/control.py repo sync --map repo-map.json
+<python-command> <skill-root>/scripts/control.py repo view --agent root
+<python-command> <skill-root>/scripts/control.py repo check
+<python-command> <skill-root>/scripts/control.py check --stage ship
 ```
 
-`SKILL.md` 是唯一注册入口。模块和参考资料按需加载，使控制系统自身保持较低的上下文压力。
+最终同步前先更新地图的语义内容。新增报告或验收清单也会改变文件清单。交付前解决开放问题和安全候选。
+退出码 0 允许交付，非零表示存在未满足条件；先修复该条件再检查，证据没有变化时反复重试不是恢复。
 
-维护者可以在套件根目录运行：
+### xhigh：真实独立工作与集成
+
+可以说：“使用 j-space 的 xhigh 挡完成这项集成。由真实子代理独立审查契约，再进行二次审视；复现重要发现，并保留分歧直到有区分力的检查将其解决。”
+从已初始化的 high 任务开始，在为当前范围创建报告之前切换路由：
+
+```text
+<python-command> <skill-root>/scripts/control.py route --level xhigh --module modules/repository.md --reason "Independent integration review"
+<python-command> <skill-root>/scripts/control.py read --agent root
+<python-command> <skill-root>/scripts/control.py agent add --id reviewer --parent root --task "Inspect the integration contract" --owns src
+<python-command> <skill-root>/scripts/control.py pulse --event resume --agent reviewer
+<python-command> <skill-root>/scripts/control.py repo view --agent reviewer
+<python-command> <skill-root>/scripts/control.py check --stage work --agent reviewer
+```
+
+宿主必须真实启动子代理，并把该代理自己的 pulse 输出送入它的上下文；注册 ID 不等于独立模型。
+子代理经过两次实质检查，分别写出 `evidence/review-1.txt` 和 `evidence/review-2.txt`，再用
+`report --agent reviewer --round 1` 与 `--round 2` 分别提交，每次都提供 `--summary`、`--evidence`、`--source` 和 `--next`。
+主代理独立核验发现，把审核证据另写入 `evidence/acceptance.txt`：
+
+```text
+<python-command> <skill-root>/scripts/control.py review --agent root --target reviewer --verdict accepted --evidence evidence/acceptance.txt
+```
+
+主代理按 high 流程写入并提交自己的报告与验收清单。所有工件稳定后，更新并同步地图，
+让**每个活跃代理**分别执行自己的 `read` 和 `repo view`，再执行主代理交付门禁。
+目标、核心约束或路由变更后，必须重新完成报告轮次和审核。丢失的子代理用 `agent retire` 记录原因和活跃接收者，
+随后由主代理重新核验完成状态。宿主确实没有代理能力时，通过
+`note --solo-reason "具体缺失能力及由此产生的审核限制"` 记录降级；不要一人驱动两个身份来伪装独立性。
+
+## 共享控制
+
+初始化仓库任务并加载相应模块：
+
+```text
+<python-command> <skill-root>/scripts/control.py init --goal "验收条件" --next "检查入口" --level high --module modules/repository.md
+<python-command> <skill-root>/scripts/control.py read --agent root
+```
+
+在任务目录中维护语义地图，例如 `repo-map.json`：
+
+```json
+{
+  "summary": "服务边界与验证路由",
+  "areas": [{"path": "src", "purpose": "请求处理与业务规则"}],
+  "facts": [{"claim": "请求通过路由器进入", "evidence": "src/router.py"}],
+  "dependencies": [{"from": "src/router.py", "to": "src/service.py", "contract": "已校验请求"}],
+  "tests": [{"path": "tests", "covers": "请求校验与服务行为"}],
+  "unknowns": [{"question": "重试如何影响写入？", "settled_by": "检查事务边界并测试重复请求"}]
+}
+```
+
+请把示例路径和结论替换为实际检查过的源码，然后运行：
+
+```text
+<python-command> <skill-root>/scripts/control.py repo sync --map repo-map.json
+<python-command> <skill-root>/scripts/control.py repo view --agent root
+<python-command> <skill-root>/scripts/control.py check --stage work --agent root
+<python-command> <skill-root>/scripts/control.py pulse --event tool --agent root
+<python-command> <skill-root>/scripts/control.py note --next "验证修改后的行为"
+```
+
+修改前读地图和相关源码；修改并验证后更新语义内容，再同步地图、刷新读取。
+指纹用于检查新鲜度，源码检查和测试用于判断内容是否正确。
+控制器使用进程锁维护唯一状态 `.jspace/control.json`，并生成共享可读视图 `.jspace/CONTROL.md`。
+
+| 能力 | 实际运行行为 |
+|---|---|
+| 原文刷新 | 从磁盘读取入口和活动模块，输出真实文本，为每个代理分别记录哈希与时间 |
+| 循环调度 | 按恢复、阶段事件、调用次数或时间间隔触发刷新 |
+| 仓库记忆 | 保存语义地图、内容清单，检测变化并记录地图读取 |
+| 持久协作 | 记录有界分工、交付轮次、证据指纹与独立复核 |
+| 安全证据 | 使用复现与负对照，维护候选、确认、否定、修复状态 |
+| 工作与交付门禁 | 必需状态、原文读取、地图或证据缺失、过期时返回非零 |
+
+完整命令、结构、证据要求、预算语义与恢复方式见[控制器参考](j-space/references/controller.md)。
+可选的 [`jspace.py`](j-space/scripts/jspace.py) 提供适合有限任务的小型账本与启发式文本审查。
+它的 `ship` 结果是提示；严格门禁使用 `control.py`。
+
+通过 `route --level xhigh --module modules/repository.md --reason "集成需要独立复核"` 可在保留任务状态的同时升档或切换可选活动模块。
+检查点使用 `note --check "结论" --by "方法与覆盖范围" --evidence PATH`。
+交付前，主代理通过 `report` 的 `--completion PATH` 提交逐项验收证据；每个子代理提交交付与独立复核。
+随后运行 `check --stage ship`。完整参数顺序见控制器参考。
+
+## 宿主接入与刷新
+
+要自动执行，请将宿主事件接入 [`host_bridge.py`](j-space/scripts/host_bridge.py)，把返回上下文送给对应代理，并执行 `allow` 决策。
+[宿主接入说明](j-space/references/host-integration.md)包含 JSON 契约、事件映射、最小适配示例与连接验证方法。
+
+默认每五个工具事件或十分钟触发原文刷新，在相关阶段和恢复事件立即刷新。这是可配置的工程起点；应依据宿主中的漂移和输入成本调整。
+时间条件在下一次事件到来时检查；脚本不会自行向空闲模型注入内容。
+
+没有原生事件接口时，在相同边界显式调用命令，并标明采用协作式控制。
+没有 Python 或文件系统时，重述对话账本，并通过可用工具实际检索原文；明确记录缺失的执行保障。
+
+## 子代理、仓库与安全
+
+- [子代理协作](j-space/modules/orchestration.md)：每个子代理获得完整 Skill，注册归属与父代理，独立读取原文。
+  结果进入共同维护的记录；同一个子代理针对薄弱点二次思考，再由其他代理或主代理复核证据。用测试处理分歧，保留不同意见。
+- [仓库](j-space/modules/repository.md)：维护契约、入口、依赖、测试路由和未知区域。修改前读、验证后同步。
+  多个候选方案需要修改相同路径时使用隔离工作副本。
+- [安全](j-space/modules/cyber.md)：在授权环境中，从可控输入追踪至违反的属性。
+  保留复现、预期与实际行为、负对照、结论依据，并在根本约束处验证修复。
+- [知识与未知](j-space/modules/epistemics.md)：区分观察、推断和未解决问题，发现隐含约束，将新暴露的空白转为具体检查。
+
+原有的内省、定向注意、推理桥接、广播、容量、监控、简写、标记和经验验证共同路由至工程模块。
+一次保持一到两个活动概念，其余内容持久保存；子代理可访问完整套件，同时按阶段选择加载。
+
+## 验证与评估
+
+在仓库根目录运行：
 
 ```text
 <python-command> j-space/scripts/verify_suite.py
 <python-command> -m unittest discover -s tests -v
 ```
 
-## 技术依据与适用边界
+CI 配置 Windows、Linux、macOS。完整性检查覆盖入口、共同前提、模块结构、路由、本地链接和 Python 语法。
+回归测试覆盖状态、输入校验、Unicode、持久化、新鲜度、协作与宿主事件。
 
-J-Space 采用 Anthropic 相关可解释性研究建立的操作性工作空间术语。在本套件中，第一人称语言被作为一种控制语法：可访问状态描述会绑定到明确的动作、检查与收束。
+仓库门禁会校验地图明确引用的文件，包括位于清单排除目录中的文件。每个活跃参与者必须查看最终地图；
+目标、核心约束或路由变更后，需要重新提交报告并审核。可用 `agent retire` 保留废弃注册的历史和交接记录，
+由 root 重新核验完成状态。大型目录应按实测门禁耗时配置宿主可信参数 `--timeout-seconds`，并同步增加外层宿主超时。
+逐文件内容哈希仍然生效，详见[控制器契约](j-space/references/controller.md)。
 
-套件关注可报告性、主动保持、中间计算、广播、监控和因果敏感性等可观察功能属性。详细的研究解释、术语、证据边界与来源维护在
-[`j-space/references/j-space-science.md`](j-space/references/j-space-science.md) 中。
+测试证明其覆盖范围内的实现行为，不能证明通用模型性能增益，也不能保证宿主遵循协议。
+请检查拟使用的具体提交和运行环境对应的 CI 结果。
 
-设计原则：
+## 项目结构
 
-> **内部稠密，按需可解码，外部保持清晰。**
+```text
+J-Space Cognition Suite SV1/
+├── .github/workflows/verify.yml
+├── .gitignore
+├── CITATION.cff
+├── CONTRIBUTING.md
+├── LICENSE
+├── README.md
+├── README.zh-CN.md
+├── THIRD_PARTY_NOTICES.md
+├── tests/
+└── j-space/
+    ├── SKILL.md
+    ├── modules/                  # 十三个按需加载的协议
+    ├── references/               # 科学资料、证据、示例与运行契约
+    └── scripts/
+        ├── control.py            # 持久门禁、地图、代理与证据
+        ├── host_bridge.py        # 通用事件与上下文适配
+        ├── jspace.py             # 独立轻量账本与文本审查
+        ├── workspace-ledger.md   # 轻量账本契约
+        └── verify_suite.py       # 编写期完整性检查
+```
 
-只使用任务真正需要的机制。
+## 研究依据与能力边界
 
-## 版本轨迹
+[工程证据](j-space/references/engineering-evidence.md)列出 J-space、四类已知/未知、LLM-as-a-Verifier、协作决策、仓库 Wiki 和重读的一手来源。
+[科学参考](j-space/references/j-space-science.md)保留研究术语与来源摘录。
 
-J-Space 已连续经历：
+套件通过指令、工具、外部状态和宿主事件发挥作用，不修改模型权重，不测量神经工作空间大小，也不保证激活不同 MoE 专家。
+选择性路由、全面审查和保留反证属于工程方法；其价值需要通过实际结果检验。
 
-**V1 → V1.5 → V1.8 → V2 → V2.5 → V2.6 → V3 → V3.1 → V3.2 → V3.5 → V3.5Turbo → V3.6 → V3.7**
+SV1 是一次架构升级。SV1 的数据与结论以自身记载的测量口径为准，不承接任何历史版本。
 
-V3.7 套件包含一个入口、九个聚焦模块、四份支撑资料、一个可选运行控制器、一个编写期验证器、一套标准库回归测试、三平台 CI、Apache-2.0 许可和机器可读引用元数据。
+## 贡献者与许可
 
-V3.7 的问题模型路由吸收了由 [@lanting200](https://github.com/lanting200) 发起的 PR ，并包含 [@afeer123](https://github.com/afeer123) 的提交贡献。
+社区贡献者包括 [@forever-ivy](https://github.com/forever-ivy)、[@lanting200](https://github.com/lanting200)、[@afeer123](https://github.com/afeer123)、[@ShaneLau2](https://github.com/ShaneLau2)、[@menoxz](https://github.com/menoxz) 和 [@raelldottin](https://github.com/raelldottin)。
 
-## 开源协议
-
-J-Space Cognition Suite 采用 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) 开源，允许在遵守声明保留与专利条款的前提下使用、修改、再分发及商业集成。完整条款见 [`LICENSE`](LICENSE)。引用或概述的外部材料仍遵循其来源条款，具体归属与边界见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。若只再分发运行时 `j-space/` 目录，应同时附带仓库根目录的这两个文件。
+项目采用 [Apache License 2.0](LICENSE)。保留归属与[第三方声明](THIRD_PARTY_NOTICES.md)，外部材料遵循各自条款。
+只分发 `j-space/` 时也应附带这两个文件。概念 DOI 用于整个项目；SV1 的版本 DOI 在归档时由 Zenodo 生成。

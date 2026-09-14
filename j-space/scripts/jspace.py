@@ -30,6 +30,7 @@ Standard library only. No network. Writes exactly one directory: .jspace/
 
 import argparse
 import codecs
+import errno
 import json
 import os
 import re
@@ -61,16 +62,7 @@ PREMISE = (
     "inside, decodable on demand."
 )
 
-INVARIANTS = [
-    "A marker fired and its bound action never happened — or it happened and you never settled.",
-    "A sweep ran and found nothing — again. A monitor that never reports is not a clean system; it is an unplugged monitor.",
-    "A dense line cannot be expanded back into plain words on request.",
-    "Every confidence tag this session has been the same tag.",
-    "A checkpoint was declared and nothing was written down.",
-    "Something was called verified without stating what the verification covered.",
-    "Dense notation appears in something a person or a task-facing tool reads.",
-    "You called the task finished without reading the goal back line by line.",
-]
+INVARIANTS = ['A marker fired and its bound action never happened — or it happened and you never settled.', 'A quiet monitor was treated as evidence that the work is correct.', 'A compressed state summary cannot be expanded into its claims and evidence.', 'Confidence stayed fixed despite evidence that should change the next action.', 'A checkpoint was declared and nothing was written down.', 'Something was called verified without stating what the verification covered.', 'Dense notation appears in something a person or a task-facing tool reads.', 'You called the task finished without reading the goal back line by line.', 'A source, repository map, report, or review was used after its evidence changed.', 'A delegated result was accepted without a durable report and an independent check.', 'A security hypothesis was promoted to a finding without reproduction and a negative control.']
 
 SHIFTS = "Shift the abstraction, shift the strategy, or shift to empirics."
 
@@ -81,6 +73,7 @@ class LedgerReadError(Exception):
 # Notation that belongs to the inner register and nowhere a person reads.
 # Deliberately excludes ✓ ✗ √: they are ordinary in checklists and summaries, and
 # stripping them from good writing costs more than the leak they would catch.
+# Also leave ∈ unflagged: ordinary mathematical membership is not by itself a register leak.
 INNER_ONLY = ["⇒", "⟹", "⟸", "∴", "∵", "⊆", "⊇", "∋", "??", "?!", "💀"]
 MARKERS = ["GRRR", "GAAAH", "PHEW", "I see meltdown", "DATA DATA", "I'M DROWNING"]
 MARKDOWN_HEADING = re.compile(r"^\s{0,3}#{1,6}(?:\s|$)")
@@ -100,7 +93,7 @@ CLAIM = re.compile(
 )
 # Benchmark names use "Verified" as a label, not as a verification claim.
 NONCLAIM_VERIFIED_LABEL = re.compile(
-    r"\b(?:Toolathlon-Verified|SWE-bench(?:\s+Verified)?)\b",
+    r"\b(?:Toolathlon-Verified|SWE-bench(?:[\s-]+Verified)?)\b",
     re.I,
 )
 COVERAGE = re.compile(
@@ -141,7 +134,7 @@ def read_ledger():
         return book
     current = None
     try:
-        with open(LEDGER, encoding="utf-8") as fh:
+        with open(LEDGER, encoding="utf-8-sig") as fh:
             lines = fh.read().splitlines()
     except (OSError, UnicodeError) as exc:
         raise LedgerReadError("%s (%s)" % (LEDGER, exc)) from exc
@@ -178,10 +171,12 @@ def atomic_write_text(path, text):
     temp_path = None
     try:
         with tempfile.NamedTemporaryFile(
-            "w", encoding="utf-8", dir=LEDGER_DIR, prefix=".jspace-", delete=False
+            "w", encoding="utf-8", newline="\n", dir=LEDGER_DIR, prefix=".jspace-", delete=False
         ) as fh:
             temp_path = fh.name
             fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
         os.replace(temp_path, path)
     except OSError as exc:
         if temp_path:
@@ -287,8 +282,9 @@ def read_history():
     return hist
 
 
-def append_history(book):
-    hist = read_history()
+def append_history(book, hist=None):
+    if hist is None:
+        hist = read_history()
     hist.append(
         {
             "t": int(time.time()),
@@ -402,7 +398,7 @@ def mode_seam(book):
     else:
         print("── j-space ─ seam")
         print_ledger(book)
-    hist = append_history(book)
+    hist = append_history(book, hist)
     found = observations(hist)
     if found:
         print()
@@ -531,14 +527,16 @@ def mode_note(book, args):
             refused.append(
                 (
                     "a checkpoint names no verifier — coverage alone is not evidence.",
-                    '--by "unit tests over all files and edge inputs"',
+                    'received --by "%s" — no verifier is named; '
+                    'example: --by "unit tests over all files and edge inputs"' % args.by,
                 )
             )
         elif not COVERAGE.search(args.by):
             refused.append(
                 (
                     INVARIANTS[5],
-                    '--by "brute force, n ≤ 6, including empty and maximum"',
+                    'received --by "%s" — a verifier is named but its coverage is not; '
+                    'example: --by "brute force, n ≤ 6, including empty and maximum"' % args.by,
                 )
             )
         else:
@@ -572,7 +570,12 @@ def mode_note(book, args):
     if args.close is not None:
         rows = book["Open"]
         target = "?%02d" % args.close
-        idx = next((i for i, row in enumerate(rows) if row.startswith(target + " ")), None)
+        idx = None
+        for i, row in enumerate(rows):
+            match = re.match(r"^\?(\d+)\b", row)
+            if match and int(match.group(1)) == args.close:
+                idx = i
+                break
         if idx is None:
             refused.append(
                 ("no open question numbered %d." % args.close, "run `resume` to see the full list")
@@ -594,6 +597,12 @@ def mode_note(book, args):
         changed = True
 
     if changed:
+        for name in ("Goal", "Next"):
+            if len(book[name]) > 1:
+                print(
+                    "WARNING: a hand-restated %s had more than one line; only the first was kept." % name,
+                    file=sys.stderr,
+                )
         problem = write_ledger(book)
         if problem:
             print("CANNOT: cannot write the ledger — " + problem)
@@ -853,7 +862,7 @@ def mode_ship(text):
             findings.append("repetition loop: a line repeats three times or more")
             break
 
-    for index, line in enumerate(lines):
+    for index, line in enumerate(audited_lines):
         if index not in structural and re.search(r"([.…\-'])\1{20,}", line):
             findings.append("repetition loop: a character run of 20 or more")
             break
@@ -887,14 +896,26 @@ def decode_outgoing(data, label):
     return text, None
 
 
+MAX_OUTGOING_BYTES = 8 * 1024 * 1024
+
+
+def bounded_outgoing(stream, label, text_stream=False):
+    """Refuse oversized input, never silently inspect a truncated prefix."""
+    data = stream.read(MAX_OUTGOING_BYTES + 1)
+    if text_stream:
+        data = data.encode('utf-8')
+    if len(data) > MAX_OUTGOING_BYTES:
+        return None, label + ' (outgoing text exceeds the 8 MiB advisory limit; split it into smaller text artifacts)'
+    return decode_outgoing(data, label)
+
+
 def read_outgoing(path):
     """Read and decode outgoing text from a file."""
     try:
         with open(path, "rb") as fh:
-            data = fh.read()
+            return bounded_outgoing(fh, path)
     except OSError as exc:
         return None, "%s (%s)" % (path, exc.strerror or "unreadable")
-    return decode_outgoing(data, path)
 
 
 def configure_streams():
@@ -940,11 +961,10 @@ def main(argv=None):
         if args.file == "-":
             try:
                 stream = getattr(sys.stdin, "buffer", None)
-                data = stream.read() if stream is not None else sys.stdin.read().encode("utf-8")
+                text, problem = bounded_outgoing(stream if stream is not None else sys.stdin,
+                                                 'stdin', text_stream=stream is None)
             except OSError as exc:
                 text, problem = None, "stdin (%s)" % (exc.strerror or "unreadable")
-            else:
-                text, problem = decode_outgoing(data, "stdin")
         else:
             text, problem = read_outgoing(args.file)
         if problem:
@@ -967,4 +987,13 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except OSError as exc:
+        # The reader closed the pipe (`... | head`); Windows reports that as
+        # EINVAL rather than EPIPE. Either way it is the reader's call, never
+        # a reason to exit non-zero.
+        if exc.errno not in (errno.EPIPE, errno.EINVAL, errno.ESHUTDOWN):
+            raise
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        sys.exit(0)

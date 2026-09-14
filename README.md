@@ -1,212 +1,340 @@
-# J-Space Cognition Suite V3.7
+# J-Space Cognition Suite SV1
 
-[简体中文](README.zh-CN.md)
+[Simplified Chinese](README.zh-CN.md)
 
 [![Concept DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21971181.svg)](https://doi.org/10.5281/zenodo.21971181)
 
-J-Space Cognition Suite is a model-agnostic inference-time control system for deep reasoning, long-horizon work, tool use, verification, and recovery.
+J-Space is an inference-time workspace and control suite for complex reasoning, repository
+engineering, coordinated agents, and authorized security analysis. You install one skill,
+load relevant modules, and keep long-task decisions connected to durable evidence.
 
-It is packaged as a Skill for cross-platform use, selective loading, and low-friction integration.
-
-The suite organizes an agent's accessible working representations into a deliberately managed workspace. It operates through a single entry, nine selectively loaded modules, four supporting references, and an optional standard-library controller for durable task state.
-
-J-Space operates at inference time. Model weights and training remain unchanged.
+Its thirteen modules share one premise and one routing entry. Standard-library Python
+scripts persist state, reread actual source text, detect stale maps and evidence, and return
+blocking results when a required condition is missing. The host supplies tools and agents.
 
 ## Quick start
 
-### Option A — manual installation
+You need a host that can load a local `SKILL.md` and retrieve its supporting files.
+Python 3.10+ is needed for executable controllers and validation; low/medium can use the
+documented prose fallback. No pip dependencies or background service are required.
 
-1. Download or clone this repository.
-2. Locate the user-level Skills directory used by your AI host.
-3. Copy the complete [`j-space/`](j-space/) directory into it so that the installed entry is `<skills-directory>/j-space/SKILL.md`.
-4. Run the integrity check with an available Python 3 interpreter:
+1. Copy the complete [`j-space/`](j-space/) directory into your host's Skills directory.
+   Obtain that directory from the host's own configuration; no universal location or
+   invocation syntax applies to every host. Keep `SKILL.md`, `modules/`, `references/`,
+   and `scripts/` together; avoid an extra nested `j-space/j-space/` directory.
+   Copy `LICENSE` and `THIRD_PARTY_NOTICES.md` alongside the installed `SKILL.md` when
+   distributing the standalone skill. Use an empty destination to avoid mixing installs.
+2. Use Python 3.10 or later to verify the installed directory:
 
    ```text
-   <python-command> <skills-directory>/j-space/scripts/verify_suite.py
+   <python-command> <skill-root>/scripts/verify_suite.py
    ```
 
-   Replace `<python-command>` with the Python 3 command available on the host, commonly `python`, `python3`, or `py -3`.
+3. Reload the host if it discovers skills only at startup. Select `j-space` through its
+   skill UI. Use `$j-space` or `/j-space` only if that host documents the syntax; otherwise
+   ask it to read the installed `SKILL.md` explicitly. Confirm it can retrieve one routed
+   module and execute the installed controller's `--help` if you need strict gates.
+4. Give it the task and its acceptance conditions:
 
-5. Reload the host if it discovers Skills at startup.
+   ```text
+   Use j-space to modify this repository. Inspect the existing contracts, maintain a
+   source-backed map, delegate independent work where useful, and verify the final behavior.
+   ```
 
-- The directory must remain intact because `SKILL.md` routes to relative paths under `modules/`, `references/`, and `scripts/`.
+Replace `<python-command>` with your available `python`, `python3`, or `py -3` command.
+Resolve `<skill-root>` to the installed directory. Keep the task directory as the working
+directory, or pass `--root TASK_DIRECTORY` before a controller subcommand.
 
+For a path with spaces in Bash:
 
-- The repository-level `LICENSE` and `THIRD_PARTY_NOTICES.md` remain part of the distribution.
-- Include copies of both when redistributing `j-space/` as a standalone package.
-
-### Option B — ask an AI agent to install it
-
-Copy the following prompt into an agent that can access files and this repository:
-
-```text
-Install J-Space Cognition Suite from
-https://github.com/Tiger3807861189/J-Space-Cognition-Suite-V3.7 into this environment's user-level Skills directory.
-
-First inspect the host configuration or documentation to locate the correct Skills directory. Install the complete j-space/ directory as j-space/, preserving SKILL.md, modules/, references/, and scripts/. If a j-space target already exists, compare it and ask before replacing anything. Run scripts/verify_suite.py with an available Python 3 interpreter after installation.
-
-When finished, report the installed path and verification result, then tell me how this host invokes the Skill. Briefly explain fast, full, and loop, and explain that the optional controller records long-task state rather than choosing solutions. If this host has no native Skill loader, explain the selective system/developer-instruction integration instead of reporting an installation.
+```bash
+python3 "/path with spaces/j-space/scripts/control.py" --root "/task directory" status
 ```
 
-### Use it
+For a quoted interpreter path in PowerShell:
 
-Invoke the Skill through the mechanism provided by your host—such as its Skill picker,
-`/j-space`, `$j-space`, or a direct request:
-
-```text
-Use j-space for this task. Audit this repository, preserve its architecture,verify every finding, and keep the work consistent across all affected files.
+```powershell
+& "C:\Python313\python.exe" "C:\Skills\j-space\scripts\control.py" --root "D:\Task Directory" status
 ```
 
-The entry gate selects the lightest suitable pass automatically.
+Run `status` after initializing the task. UTF-8 input supports English and Chinese task
+content; use the language requested by the user for deliverables.
+Run controllers in the target project's task directory, not the installed skill directory.
+Installing the files does not automatically register hooks, launch agents, or grant tool access.
 
-## Operating modes
+> **Intended use.** This suite is designed for real engineering and production-oriented
+> projects with contracts, dependencies, verification, and recovery needs. It is not aimed
+> at toy demonstrations such as “a pelican riding a bicycle.” Its suitability for serious
+> work is a design focus, not a guarantee that any untested deployment is production-ready.
 
-| Pass | Suitable work | What loads |
+## Operating levels
+
+| Level | Use | Control |
 |---|---|---|
-| `fast` | One step, or a result checkable in one glance | Nothing extra |
-| `full` | Several dependent steps and one bounded deliverable | One or two relevant modules; `ship` before delivery |
-| `loop` | Multiple stages, files, turns, tools, or persistent state | Ledger, seams, checkpoints, register audit, and recovery |
+| `low` | A direct answer checkable at a glance | Fast pass; no persistent setup |
+| `medium` | A bounded deliverable with a few dependent steps | Full pass; selective modules and delivery audit |
+| `high` | Multi-file, multi-stage, or persistent work | Loop; shared state, source refresh, evidence checks |
+| `xhigh` | Difficult integration or competing approaches that benefit from a team | Loop plus bounded agents, second consideration, and independent review |
 
-A request for brevity changes the outer response length while verification remains aligned with the task's floor. Short work stays light; long work receives durable state only when it needs it.
+`media` is an accepted alias for `medium`. Raise the level when the task's uncertainty or
+dependencies require it. Use agents proactively when independent work justifies coordination.
+When the host lacks agents, record the limitation and perform sequential checks.
 
-## Core mechanisms
+## A short tutorial for all four levels
 
-| Mechanism | Function |
-|---|---|
-| Selective workspace loading | Keeps one or two load-bearing ideas active and externalizes the rest |
-| Broadcast hub | Gives dependent branches one shared source for names, values, constraints, and style anchors |
-| Dense Track | Carries long internal chains in compact, decodable notation before returning to clean outer language |
-| Bridge-before-conclusion reasoning | Makes required intermediates explicit before a conclusion consumes them |
-| Metacognitive control | Routes confidence, inconsistency, and failure signals into a concrete next action |
-| Empirical escape and verification | Converts stalled derivation into bounded tests with a named verifier and coverage |
-| First-person agency and functional echo | Uses `I`, `we`, `let's`, and `we need` to bind workspace state to later actions and checks |
+Select the skill first. In commands below, replace `<python-command>` and `<skill-root>`
+with your installed interpreter and skill directory, quote paths containing spaces, and
+work in the target task directory. The example artifact names refer to files you create
+from actual work and checks; do not create empty or fabricated evidence just to pass a gate.
 
-The mechanisms are selectively loaded. They are not a fixed checklist for every request.
+### low — a bounded check inside engineering work
 
-## Optional controller
+Ask: “Use j-space at low to check whether this configuration change preserves the timeout
+unit. State the conclusion and its evidence; do not expand the task.” Read the relevant
+input, check the one constraint, and return the result. No state initialization is required.
+Escalate if the check exposes cross-file dependencies or unresolved uncertainty.
 
-[`j-space/scripts/jspace.py`](j-space/scripts/jspace.py) externalizes `loop` state into
-`.jspace/` in the current task workspace. Invoke it by its resolved Skill path while keeping the task workspace as the current directory.
+### medium — a small deliverable with dependent steps
 
-| Command | Purpose |
-|---|---|
-| `note --goal "..." --next "..."` | Open the ledger and define done plus the first action |
-| `note --next "..."` | Replace the single next action after a checkpoint or seam |
-| `note --core "name — defining fact"` | Record a hub entry |
-| `note --core "name — defining fact" --core-slot 1` | Swap a selected live hub entry |
-| `note --check "..." --by "..."` | Append a checkpoint with verifier and coverage |
-| `note --open "..." --settled-by "..."` | Record a question and what would settle it |
-| `note --close N --check "..." --by "..."` | Close question `N` against a new recorded checkpoint |
-| `seam` | Re-read current state and report recent movement |
-| `ship FILE` | Inspect outgoing text for register leakage and failure signatures |
-| `resume` | Reload the premise, invariants, and full ledger after a long gap |
+Ask: “Use j-space at medium to update this API example and verify its parameters against
+the implementation. Keep a short record of the goal, uncertainty, and observed checks.”
+Optionally use the lightweight ledger:
 
 ```text
-<python-command> <skill-root>/scripts/jspace.py note --goal "what done means" --next "first action"
-<python-command> <skill-root>/scripts/jspace.py note --open "does the parser preserve state?" --settled-by "unit tests over all ledger sections and edge inputs"
-<python-command> <skill-root>/scripts/jspace.py note --close 1 --check "the parser preserves state" --by "unit tests over all ledger sections and edge inputs"
+<python-command> <skill-root>/scripts/jspace.py note --goal "API example matches implementation" --next "Inspect the endpoint"
+<python-command> <skill-root>/scripts/jspace.py note --open "Does the example cover required inputs?" --settled-by "Inspect the endpoint and run the example"
 <python-command> <skill-root>/scripts/jspace.py seam
-<python-command> <skill-root>/scripts/jspace.py ship OUTPUT_FILE
-<python-command> <skill-root>/scripts/jspace.py resume
 ```
 
-The controller records and reports state. Solution choice remains with the model. It uses the Python standard library and writes working state only under the task's `.jspace/` directory.
+Inspect and run the example, then record the actual outcome with
+`note --check "Observed result" --by "manual inspection of each input and execution of the reported case" --close 1`.
+Write `answer.md`, then run `jspace.py ship answer.md`. This audits text heuristically;
+findings are advisory, while unreadable/oversized input is rejected. It does not prove the
+API behavior. Do not maintain this ledger alongside the strict controller for the same task.
 
-## Generic model integration
+### high — repository work from inspection to delivery
 
-An environment with a native Skill loader can install `j-space/` directly. For a chat or API environment, provide [`j-space/SKILL.md`](j-space/SKILL.md) as a system- or developer-level instruction and expose `modules/` and `references/` through file or retrieval tools.
-
-Selected files should be retrieved on demand. Selective loading is part of the operating design.
-
-## Benchmark
-
-### 1. Main table
-
-| Benchmark                | DeepSeek V4-Flash-Vision-Exp | DeepSeek V4-Flash-Vision-Exp **+ J-Space V3.7** | GLM-5.3 | Opus-4.8 | Fable 5 (w/ fallback) |
-| ------------------------ | ---------------------------: | ----------------------------------------------: | ------: | -------: | --------------------: |
-| HLE (w/o tools)          |                        *37.8 |                                        **37.8** |       — |     49.8 |                  53.3 |
-| HLE (w/ tools)           |                        *51.5 |                                        **51.9** |    62.5 |     57.9 |                  63.0 |
-| Terminal Bench 2.1       |                         83.9 |                                        **85.4** |    88.2 |     85.0 |                  88.0 |
-| NL2Repo                  |                         57.7 |                                        **60.6** |    58.0 |     69.7 |                     — |
-| DeepSWE                  |                         59.3 |                                        **61.7** |    66.9 |     58.0 |                  70.0 |
-| Agents' Last Exam        |                         27.3 |                                        **28.3** |    28.5 |     25.7 |                  23.8 |
-| AutomationBench (Public) |                         25.7 |                                        **27.5** |    48.2 |     27.2 |                  29.1 |
-
-\* HLE scores were not disclosed and follow DeepSeek V4-Flash-0731. 
-
-### 2. Speed and token efficiency
-
-| Benchmark                | Wall-clock τ | Speedup | Output tokens | Total tokens | **Score per unit time** | Cost per successful task |
-| ------------------------ | -----: | ---: | ---------: | -------: | ---------------: | -------------: |
-| HLE (w/o tools)          |  *1.02 |  −2% |       −10% |      +5% |        **0.98×** |            +5% |
-| HLE (w/ tools)           |   0.88 | +14% |       −22% |      +3% |        **1.15×** |            +2% |
-| Terminal Bench 2.1       |   0.79 | +27% |       −28% |      −3% |        **1.29×** |            −5% |
-| AutomationBench (Public) |   0.76 | +32% |       −31% |      −5% |        **1.41×** |           −12% |
-
-\* For HLE (w/o tools) τ=1.02 is **intentionally positive** (i.e., slower): on single-turn tasks the Skill entry is a net overhead.
-
-**See: [DeepSeek V4 × J-Space Capability Realization Report](https://github.com/Tiger3807861189/DeepSeek-V4-J-Space-Capability-Realization-Report).**
-
-## Cross-model compatibility
-
-The operating effects have been reproduced across the DeepSeek, Qwen, GLM, GPT, and Claude model families. Effect size varies with base capability, context policy, tool harness, sampling configuration, and benchmark implementation.
-
-The portable unit is the protocol: workspace loading, selective routing, state externalization, verification, and recovery. It is independent of a vendor-specific tokenizer or model API.
-
-## Project structure
+Ask: “Use j-space at high to repair this repository issue. Preserve public contracts, keep
+a source-backed map, run the relevant tests, and finish with evidence against each requirement.”
+Follow the **Shared control** section to initialize, read sources, create/sync/view the map,
+and pass the work gate. Perform the work; record real verification in `evidence/root.txt`
+and a separate acceptance checklist in `evidence/completion.txt`. Keep `src/router.py` below
+only if it is a material source dependency; substitute your actual sources and repeat `--source` as needed.
 
 ```text
-J-Space-Cognition-Suite-V3.7/
-├── .github/workflows/verify.yml    # three-platform integrity and regression checks
-├── CITATION.cff                    # machine-readable citation metadata
-├── CONTRIBUTING.md                 # contribution and provenance requirements
-├── LICENSE                         # Apache License 2.0
-├── README.md                       # English engineering guide
-├── README.zh-CN.md                 # Chinese engineering guide
-├── THIRD_PARTY_NOTICES.md          # attribution and license boundaries for source material
-├── tests/test_jspace.py            # standard-library controller regression tests
-└── j-space/
-    ├── SKILL.md                    # single entry, gate, routing, and invariants
-    ├── modules/                    # nine selectively loaded protocols
-    ├── references/                 # evidence, induction, problem modeling, and worked exemplars
-    └── scripts/
-        ├── jspace.py               # optional loop controller
-        ├── workspace-ledger.md     # ledger template and contract
-        └── verify_suite.py         # authoring-time integrity check
+<python-command> <skill-root>/scripts/control.py pulse --event checkpoint
+<python-command> <skill-root>/scripts/control.py report --agent root --round 1 --summary "Observed repair and coverage" --evidence evidence/root.txt --completion evidence/completion.txt --source src/router.py --next "Deliver checked result"
+<python-command> <skill-root>/scripts/control.py repo sync --map repo-map.json
+<python-command> <skill-root>/scripts/control.py repo view --agent root
+<python-command> <skill-root>/scripts/control.py repo check
+<python-command> <skill-root>/scripts/control.py check --stage ship
 ```
 
-`SKILL.md` is the only registered entry. Modules and references are loaded on demand so the control system does not become its own source of context pressure.
+Update the map's meaning before that final sync. Creating report/checklist files changes
+the inventory too. Resolve open questions and security candidates before shipment. Exit 0
+allows delivery; a nonzero result names an unmet condition. Repair that condition before
+checking again; identical retries without changed evidence are not recovery.
 
-Maintainers can verify the package from its root:
+### xhigh — actual independent work and integration
+
+Ask: “Use j-space at xhigh for this integration. Assign an independent contract review to
+a real child agent, request its second consideration, reproduce material findings, and
+retain disagreements until a discriminating check resolves them.” From an initialized high
+task, route before creating reports for the current scope:
+
+```text
+<python-command> <skill-root>/scripts/control.py route --level xhigh --module modules/repository.md --reason "Independent integration review"
+<python-command> <skill-root>/scripts/control.py read --agent root
+<python-command> <skill-root>/scripts/control.py agent add --id reviewer --parent root --task "Inspect the integration contract" --owns src
+<python-command> <skill-root>/scripts/control.py pulse --event resume --agent reviewer
+<python-command> <skill-root>/scripts/control.py repo view --agent reviewer
+<python-command> <skill-root>/scripts/control.py check --stage work --agent reviewer
+```
+
+The host must actually launch that child and deliver its own pulse output; an ID is not an
+independent model. The child writes distinct `evidence/review-1.txt` and `evidence/review-2.txt`
+after two substantive passes, then submits each through `report --agent reviewer --round 1`
+and `--round 2`, supplying `--summary`, `--evidence`, `--source`, and `--next` each time.
+Root independently checks the finding and writes a separate `evidence/acceptance.txt`:
+
+```text
+<python-command> <skill-root>/scripts/control.py review --agent root --target reviewer --verdict accepted --evidence evidence/acceptance.txt
+```
+
+Root writes and submits its own report and completion checklist as in high. After all
+artifacts are stable, update/sync the map, have **every active agent** run its own `read`
+and `repo view`, then run the root ship gate. Goal/core/route changes require fresh report
+cycles and reviews. A lost child uses `agent retire` with a reason and active successor,
+followed by fresh root completion. If the host truly lacks delegation, record
+`note --solo-reason "Specific unavailable capability and resulting review limit"`; do not
+simulate independence by driving two identities yourself.
+
+## Shared control
+
+Initialize a repository task with its relevant module:
+
+```text
+<python-command> <skill-root>/scripts/control.py init --goal "Acceptance criteria" --next "Inspect entry points" --level high --module modules/repository.md
+<python-command> <skill-root>/scripts/control.py read --agent root
+```
+
+Maintain a semantic map as a task file, for example `repo-map.json`:
+
+```json
+{
+  "summary": "Service boundaries and validation routes",
+  "areas": [{"path": "src", "purpose": "Request handling and business rules"}],
+  "facts": [{"claim": "Requests enter through the router", "evidence": "src/router.py"}],
+  "dependencies": [{"from": "src/router.py", "to": "src/service.py", "contract": "Validated request"}],
+  "tests": [{"path": "tests", "covers": "Request validation and service behavior"}],
+  "unknowns": [{"question": "How do retries affect writes?", "settled_by": "Inspect transaction boundaries and test repeated requests"}]
+}
+```
+
+Replace example paths and claims with inspected files in your actual task. Then:
+
+```text
+<python-command> <skill-root>/scripts/control.py repo sync --map repo-map.json
+<python-command> <skill-root>/scripts/control.py repo view --agent root
+<python-command> <skill-root>/scripts/control.py check --stage work --agent root
+<python-command> <skill-root>/scripts/control.py pulse --event tool --agent root
+<python-command> <skill-root>/scripts/control.py note --next "Validate the changed behavior"
+```
+
+Read the map before edits. Update its semantic claims after source changes and verification,
+then sync and view it again. A fingerprint checks freshness; source inspection and tests
+establish whether the claims are true. The controller writes `.jspace/control.json` under a
+process lock and derives the shared `.jspace/CONTROL.md` view from that canonical state.
+
+| Capability | Runtime behavior |
+|---|---|
+| Source refresh | Reads current entry/module files, emits their actual text, and records per-agent hashes and times |
+| Pulse schedule | Refreshes on recovery and phase events, configured call count, or elapsed interval |
+| Repository memory | Stores a semantic map and content inventory, detects changes, and records map views |
+| Durable collaboration | Records bounded ownership, rounds of reports, evidence fingerprints, and independent reviews |
+| Security evidence | Tracks candidate, confirmed, rejected, and fixed dispositions with reproduction and controls |
+| Work/delivery gates | Returns nonzero when required state, source receipts, map, or evidence is missing or stale |
+
+Read [the controller reference](j-space/references/controller.md) for complete commands,
+schemas, evidence rules, budget semantics, and recovery. The optional
+[`jspace.py`](j-space/scripts/jspace.py) provides a small standalone ledger and heuristic
+text audit for bounded work. Its `ship` output is advisory; use `control.py` for strict gates.
+
+Use `route --level xhigh --module modules/repository.md --reason "Integration needs independent review"`
+to raise the level or change active optional modules while preserving task state. Record
+checkpoints with `note --check "Claim" --by "Method and coverage" --evidence PATH`.
+Before shipment, root submits `report` with `--completion PATH` containing the goal-by-goal
+acceptance check; each delegate supplies its reports and independent review. Then run
+`check --stage ship`. The controller reference contains the complete argument sequence.
+
+## Host integration and refresh
+
+To make invocation automatic, wire your host's events to
+[`host_bridge.py`](j-space/scripts/host_bridge.py), feed its returned context to the agent,
+and honor its `allow` decision. [Host integration](j-space/references/host-integration.md)
+defines the JSON contract, event mapping, a minimal adapter, and a connection test.
+
+Default source refresh is five tool events or ten minutes, whichever is encountered first,
+with immediate refresh at relevant phase and recovery events. These are configurable
+engineering defaults; measure drift and input cost for your host. Time-based refresh runs
+when an event arrives, and the scripts do not inject into an idle model on their own.
+
+With no native hooks, call the same commands at explicit boundaries and describe the setup
+as cooperative control. With no Python or filesystem, keep a restated conversation ledger
+and retrieve source text with available tools. Report the missing executable safeguards.
+
+## Agents, repositories, and security
+
+- [Orchestration](j-space/modules/orchestration.md): give every child the complete skill,
+  register its ownership and parent, and require its own source reads. Preserve reports in
+  the shared record, return to the same child for a focused second pass, and independently
+  check the resulting evidence. Resolve competing proposals through tests, retaining dissent.
+- [Repository](j-space/modules/repository.md): map contracts, entry points, dependencies,
+  test routes, and unknown areas. Read before editing and synchronize after verification.
+  Use separate candidate checkouts when multiple approaches need conflicting writes.
+- [Cyber](j-space/modules/cyber.md): trace controlled input to a violated property within
+  the authorized environment. Preserve reproduction, expected/observed behavior, a negative
+  control, and a supported disposition. Verify repairs at the underlying invariant.
+- [Epistemics](j-space/modules/epistemics.md): distinguish observation, inference, and
+  uncertainty; recover tacit constraints and turn newly exposed gaps into specific probes.
+
+The existing workspace operations—introspection, directed focus, reasoning bridges, broadcast,
+capacity, monitoring, shorthand, markers, and empirics—route into these engineering modules.
+Keep one or two ideas active and persist the rest. A child gets the complete suite while
+loading only what its current phase requires.
+
+## Validation and evaluation
+
+Run from the repository root:
 
 ```text
 <python-command> j-space/scripts/verify_suite.py
 <python-command> -m unittest discover -s tests -v
 ```
 
-## Technical basis and scope
+CI configures Windows, Linux, and macOS. The integrity check covers the entry, shared
+premise, module structure, routes, local links, and Python syntax. Regression tests exercise
+state, input validation, Unicode, persistence, freshness, coordination, and host events.
 
-J-Space uses the operational workspace terminology established by Anthropic's related interpretability research. Within this suite, first-person language is treated as control grammar: accessible state descriptions are bound to explicit actions, checks, and settles.
+Repository gates revalidate explicitly cited map facts even in inventory-excluded directories.
+Every active participant must view the final map; goal/core/route changes require fresh
+reports and reviews. Use `agent retire` to preserve an abandoned registration's history and
+handoff while root reassesses completion. For large trees, configure the trusted bridge's
+`--timeout-seconds` and outer host deadline based on measured gate latency. Full content
+hashing remains in force. See [the controller contract](j-space/references/controller.md).
 
-The suite focuses on observable functional properties—reportability, deliberate maintenance, intermediate computation, broadcast, monitoring, and causal sensitivity. Detailed research interpretation, terminology, evidence boundaries, and sources are maintained in
-[`j-space/references/j-space-science.md`](j-space/references/j-space-science.md).
+Tests establish the implemented behaviors they cover; they do not establish universal model
+performance gains or guarantee a host honors the protocol. Check CI results for the exact
+commit and environment you plan to use.
 
-Design principle:
+## Project layout
 
-> **Dense on the inside, decodable on demand, clean on the outside.**
+```text
+J-Space Cognition Suite SV1/
+├── .github/workflows/verify.yml
+├── .gitignore
+├── CITATION.cff
+├── CONTRIBUTING.md
+├── LICENSE
+├── README.md
+├── README.zh-CN.md
+├── THIRD_PARTY_NOTICES.md
+├── tests/
+└── j-space/
+    ├── SKILL.md
+    ├── modules/                  # Thirteen selectively loaded protocols
+    ├── references/               # Science, evidence, examples, and runtime contracts
+    └── scripts/
+        ├── control.py            # Persistent gates, maps, agents, and evidence
+        ├── host_bridge.py        # Portable event/context adapter
+        ├── jspace.py             # Standalone lightweight ledger and text audit
+        ├── workspace-ledger.md   # Lightweight ledger contract
+        └── verify_suite.py       # Authoring integrity checks
+```
 
-Use only the machinery the task earns.
+## Research and claim boundaries
 
-## Release history
+[Engineering evidence](j-space/references/engineering-evidence.md) links the primary sources
+for J-space, the four knowledge quadrants, LLM-as-a-Verifier, team reconciliation, repository
+wikis, and re-reading. [The science reference](j-space/references/j-space-science.md) preserves
+the suite's research terminology and source excerpts.
 
-J-Space has progressed through:
+The suite acts through instructions, tools, external state, and host event handling. It
+does not modify model weights, measure neural workspace size, or guarantee activation of
+different MoE experts. Use sparse routing, broad review, and retained contrary evidence as
+engineering patterns; establish their value through observable results.
 
-**V1 → V1.5 → V1.8 → V2 → V2.5 → V2.6 → V3 → V3.1 → V3.2 → V3.5 → V3.5Turbo → V3.6 → V3.7**
+SV1 is an architectural upgrade. SV1's data and conclusions stand on their own stated
+measurement basis; nothing is carried forward from an earlier version.
 
-The V3.7 package contains one entry, nine focused modules, four supporting references, an optional runtime controller, an authoring-time verifier, standard-library regression tests, three-platform CI, Apache-2.0 licensing, and machine-readable citation metadata.
+## Contributors and license
 
-V3.7's problem-model routing incorporates the pull request opened by [@lanting200](https://github.com/lanting200), including commit contributions from [@afeer123](https://github.com/afeer123).
+Community contributors include [@forever-ivy](https://github.com/forever-ivy),
+[@lanting200](https://github.com/lanting200), [@afeer123](https://github.com/afeer123),
+[@ShaneLau2](https://github.com/ShaneLau2), [@menoxz](https://github.com/menoxz), and
+[@raelldottin](https://github.com/raelldottin).
 
-## License
-
-J-Space Cognition Suite is released under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). It permits use, modification, redistribution, and commercial integration under its notice and patent terms. See [`LICENSE`](LICENSE) for the complete terms. Quoted or summarized external source material remains subject to its source terms and is identified in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). When redistributing only the runtime `j-space/` directory, carry both root files with it.
+J-Space uses [Apache License 2.0](LICENSE). Preserve attribution and the
+[third-party notices](THIRD_PARTY_NOTICES.md); external materials retain their own terms.
+When redistributing only `j-space/`, include copies of both files. The concept DOI covers
+the project; Zenodo mints the SV1 version DOI when the release is archived.

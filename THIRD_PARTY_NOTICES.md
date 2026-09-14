@@ -23,8 +23,25 @@ materials include:
 - METR, [*Details about METR's evaluation of OpenAI
   GPT-5*](https://metr.org/evaluations/gpt-5-report/).
 - The papers and technical reports listed in
-  [`j-space/references/j-space-science.md`](j-space/references/j-space-science.md), including
+  `references/j-space-science.md` beneath the skill directory, including
   arXiv:2510.27338, arXiv:2509.15541, arXiv:2501.12948, and arXiv:1704.06960.
+
+## Engineering references
+
+The suite summarizes the following materials in
+`references/engineering-evidence.md` beneath the skill directory and derives its own
+operating protocols. No third-party source code is incorporated from these projects:
+
+- Thariq Shihipar / Anthropic, [A field guide to Claude Fable: Finding your unknowns](https://claude.com/blog/a-field-guide-to-claude-fable-finding-your-unknowns).
+- Stanford, UC Berkeley, and NVIDIA collaborators, [LLM-as-a-Verifier](https://llm-as-a-verifier.com/) and its [repository](https://github.com/llm-as-a-verifier/llm-as-a-verifier).
+- Pappu et al., [Multi-Agent Teams Hold Experts Back](https://machinelearning.apple.com/research/multi-agent-teams-experts).
+- LangChain, [OpenWiki](https://github.com/langchain-ai/openwiki).
+- Xu et al., [Re-Reading Improves Reasoning in Large Language Models](https://arxiv.org/abs/2309.06275).
+- DeepSeek-AI, [DeepSeek-V3 Technical Report](https://arxiv.org/abs/2412.19437).
+
+Source links identify the authors' results and current terms. Suite-authored mappings from
+research to runtime behavior are engineering interpretations, not reproduced benchmark
+results or claims of affiliation. Short category labels retain their source attribution.
 
 ## Public Fable 5 / Codeforces trace
 
